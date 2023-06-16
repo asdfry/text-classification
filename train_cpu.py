@@ -1,5 +1,6 @@
 import csv
 import torch
+import argparse
 import evaluate
 
 from tqdm.auto import tqdm
@@ -8,12 +9,25 @@ from torch.utils.data import DataLoader
 from datasets import load_dataset, DatasetDict
 from transformers import AutoTokenizer, AutoModelForSequenceClassification, get_scheduler
 
+
+# Argparse
+parser = argparse.ArgumentParser()
+parser.add_argument("-e", "--epoch", type=int, required=True)
+parser.add_argument("-b", "--batch_size", type=int, required=True)
+args = parser.parse_args()
+
+
+# Prefix
 model_name = "classla/xlm-roberta-base-multilingual-text-genre-classifier"
 
+
+# Create dataset
 datasets = DatasetDict()
 datasets["train"] = load_dataset("csv", data_files="./data/train.csv")["train"]
 datasets["valid"] = load_dataset("csv", data_files="./data/valid.csv")["train"]
 
+
+# Load tokenizer and tokenize
 tokenizer = AutoTokenizer.from_pretrained(model_name)
 
 
@@ -22,40 +36,52 @@ def tokenize_function(examples):
 
 
 tokenized_datasets = datasets.map(tokenize_function, batched=True)
+
+
+# Postprocess for train with native pytorch
 tokenized_datasets = tokenized_datasets.remove_columns(["text"])
 tokenized_datasets = tokenized_datasets.rename_column("label", "labels")
 tokenized_datasets.set_format("torch")
 
-small_train_dataset = tokenized_datasets["train"].shuffle(seed=77).select(range(1000))
-small_valid_dataset = tokenized_datasets["valid"].shuffle(seed=77).select(range(1000))
 
-batch_size = 32
-train_dataloader = DataLoader(small_train_dataset, shuffle=True, batch_size=batch_size)
-valid_dataloader = DataLoader(small_valid_dataset, batch_size=batch_size)
+# Create dataloader
+train_dataloader = DataLoader(tokenized_datasets["train"], shuffle=True, batch_size=args.batch_size)
+valid_dataloader = DataLoader(tokenized_datasets["valid"], batch_size=args.batch_size)
 
+
+# Prepare id-label mapper
 with open("./data/id_to_label.csv", "r") as f:
     reader = csv.DictReader(f)
     id2label = {row["id"]: row["label"] for row in reader}
 label2id = {label: id for id, label in id2label.items()}
 
+
+# Load model
 model = AutoModelForSequenceClassification.from_pretrained(
     model_name, num_labels=18, id2label=id2label, label2id=label2id, ignore_mismatched_sizes=True
 )
 
+
+# Set optimizer
 optimizer = AdamW(model.parameters(), lr=5e-5)
 
-num_epochs = 3
-num_training_steps = num_epochs * len(train_dataloader)
+
+# Create learning rate scheduler
+num_training_steps = args.epoch * len(train_dataloader)
 lr_scheduler = get_scheduler(
     name="linear", optimizer=optimizer, num_warmup_steps=0, num_training_steps=num_training_steps
 )
 
+
+# Set device and create metric
 device = torch.device("cpu")
 model.to(device)
 metric = evaluate.load("accuracy")
 
-for epoch in range(num_epochs):
-    print(f"--- epoch {epoch + 1} ---")
+
+# Train
+for epoch in range(args.epoch):
+    print("-" * 10, f"epoch {epoch + 1}", "-" * 10)
 
     model.train()
     loss_per_epoch = 0
