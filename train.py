@@ -3,7 +3,6 @@ import torch
 import argparse
 import evaluate
 
-from tqdm.auto import tqdm
 from torch.optim import AdamW
 from torch.utils.data import DataLoader
 from datasets import load_dataset, DatasetDict
@@ -14,6 +13,8 @@ from transformers import AutoTokenizer, AutoModelForSequenceClassification, get_
 parser = argparse.ArgumentParser()
 parser.add_argument("-e", "--epoch", type=int, required=True)
 parser.add_argument("-b", "--batch_size", type=int, required=True)
+parser.add_argument("-g", "--gpu", action="store_true", default=False)
+parser.add_argument("-t", "--test", action="store_true", default=False)
 args = parser.parse_args()
 
 
@@ -45,8 +46,15 @@ tokenized_datasets.set_format("torch")
 
 
 # Create dataloader
-train_dataloader = DataLoader(tokenized_datasets["train"], shuffle=True, batch_size=args.batch_size)
-valid_dataloader = DataLoader(tokenized_datasets["valid"], batch_size=args.batch_size)
+if args.test:
+    print("This process is test mode")
+    small_train_dataset = tokenized_datasets["train"].shuffle(seed=77).select(range(160))
+    small_valid_dataset = tokenized_datasets["valid"].shuffle(seed=77).select(range(20))
+    train_dataloader = DataLoader(small_train_dataset, shuffle=True, batch_size=args.batch_size)
+    valid_dataloader = DataLoader(small_valid_dataset, batch_size=args.batch_size)
+else:
+    train_dataloader = DataLoader(tokenized_datasets["train"], shuffle=True, batch_size=args.batch_size)
+    valid_dataloader = DataLoader(tokenized_datasets["valid"], batch_size=args.batch_size)
 
 
 # Prepare id-label mapper
@@ -58,7 +66,11 @@ label2id = {label: id for id, label in id2label.items()}
 
 # Load model
 model = AutoModelForSequenceClassification.from_pretrained(
-    model_name, num_labels=18, id2label=id2label, label2id=label2id, ignore_mismatched_sizes=True
+    model_name,
+    num_labels=18,
+    id2label=id2label,
+    label2id=label2id,
+    ignore_mismatched_sizes=True,
 )
 
 
@@ -69,19 +81,27 @@ optimizer = AdamW(model.parameters(), lr=5e-5)
 # Create learning rate scheduler
 num_training_steps = args.epoch * len(train_dataloader)
 lr_scheduler = get_scheduler(
-    name="linear", optimizer=optimizer, num_warmup_steps=0, num_training_steps=num_training_steps
+    name="linear",
+    optimizer=optimizer,
+    num_warmup_steps=0,
+    num_training_steps=num_training_steps,
 )
 
 
-# Set device and create metric
-device = torch.device("cpu")
+# Set device and load metric method
+if args.gpu:
+    device = torch.device("cuda")
+    print("User GPU")
+else:
+    device = torch.device("cpu")
+    print("User CPU")
 model.to(device)
 metric = evaluate.load("accuracy")
 
 
 # Train
 for epoch in range(args.epoch):
-    print("-" * 10, f"epoch {epoch + 1}", "-" * 10)
+    print("-" * 20, f"epoch {epoch + 1}", "-" * 20)
 
     model.train()
     loss_per_epoch = 0
@@ -95,17 +115,24 @@ for epoch in range(args.epoch):
         optimizer.step()
         lr_scheduler.step()
         optimizer.zero_grad()
-        print(f"[{step + 1} / {len(train_dataloader)}] loss: {loss_per_epoch / (step + 1)}")
+        print(f"[train] step: {step + 1}/{len(train_dataloader)}, loss: {loss_per_epoch / (step + 1)}")
 
     model.eval()
-    for batch in valid_dataloader:
+    loss_per_epoch = 0
+    for step, batch in enumerate(valid_dataloader):
         batch = {k: v.to(device) for k, v in batch.items()}
         with torch.no_grad():
             outputs = model(**batch)
 
+        loss_per_epoch += outputs.loss
+        print(f"[valid] step: {step + 1}/{len(valid_dataloader)}, loss: {loss_per_epoch / (step + 1)}")
+
         logits = outputs.logits
         predictions = torch.argmax(logits, dim=-1)
         metric.add_batch(predictions=predictions, references=batch["labels"])
+
     print(f"metric: {metric.compute()}")
 
-    model.save_pretrained(f"./models/epoch-{epoch + 1}")
+    save_path = f"./models/epoch-{epoch + 1}"
+    model.save_pretrained(save_path)
+    print(f"model saved at {save_path}")
