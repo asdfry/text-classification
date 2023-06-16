@@ -82,4 +82,4 @@ for epoch in range(num_epochs):
         metric.add_batch(predictions=predictions, references=batch["labels"])
     print(f"metric: {metric.compute()}")
 
-    model.save_pretrained()
+    model.save_pretrained(f"./models/epoch-{epoch + 1}")
