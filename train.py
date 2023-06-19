@@ -24,8 +24,8 @@ model_name = "classla/xlm-roberta-base-multilingual-text-genre-classifier"
 
 # Create dataset
 datasets = DatasetDict()
-datasets["train"] = load_dataset("csv", data_files="./data/train.csv")["train"]
-datasets["valid"] = load_dataset("csv", data_files="./data/valid.csv")["train"]
+datasets["train"] = load_dataset("csv", data_files="/mnt/data/train.csv")["train"]
+datasets["valid"] = load_dataset("csv", data_files="/mnt/data/valid.csv")["train"]
 
 
 # Load tokenizer and tokenize
@@ -58,7 +58,7 @@ else:
 
 
 # Prepare id-label mapper
-with open("./data/id_to_label.csv", "r") as f:
+with open("/mnt/data/id_to_label.csv", "r") as f:
     reader = csv.DictReader(f)
     id2label = {row["id"]: row["label"] for row in reader}
 label2id = {label: id for id, label in id2label.items()}
@@ -133,6 +133,6 @@ for epoch in range(args.epoch):
 
     print(f"metric: {metric.compute()}")
 
-    save_path = f"./models/epoch-{epoch + 1}"
+    save_path = f"/mnt/models/epoch-{epoch + 1}"
     model.save_pretrained(save_path)
     print(f"model saved at {save_path}")
