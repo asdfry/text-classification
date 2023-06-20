@@ -11,11 +11,11 @@ args = parser.parse_args()
 
 
 # Prefix
-df = pd.read_csv("./data/valid.csv")
-id_to_label = pd.read_csv("./data/id_to_label.csv")
+df = pd.read_csv("/mnt/data/valid.csv")
+id_to_label = pd.read_csv("/mnt/data/id_to_label.csv")
 id2label = id_to_label["label"].to_list()
 pretrained_model = "classla/xlm-roberta-base-multilingual-text-genre-classifier"
-finetuned_model = f"./models/epoch-{args.epoch}"
+finetuned_model = f"/mnt/models/epoch-{args.epoch}"
 
 
 # Create classifier
