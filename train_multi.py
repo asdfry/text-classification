@@ -118,7 +118,8 @@ for epoch in range(args.epoch):
         optimizer.step()
         lr_scheduler.step()
         optimizer.zero_grad()
-        accelerator.print(f"[train] step: {step + 1}/{len(train_dataloader)}, loss: {loss_per_epoch / (step + 1)}")
+        if (step + 1) % 500 == 0:
+            accelerator.print(f"[train] step: {step + 1}/{len(train_dataloader)}, loss: {loss_per_epoch / (step + 1)}")
 
     model.eval()
     loss_per_epoch = 0
@@ -128,16 +129,17 @@ for epoch in range(args.epoch):
             outputs = model(**batch)
 
         loss_per_epoch += outputs.loss
-        accelerator.print(f"[valid] step: {step + 1}/{len(valid_dataloader)}, loss: {loss_per_epoch / (step + 1)}")
+        if (step + 1) % 500 == 0:
+            accelerator.print(f"[valid] step: {step + 1}/{len(valid_dataloader)}, loss: {loss_per_epoch / (step + 1)}")
 
         logits = outputs.logits
         predictions = torch.argmax(logits, dim=-1)
-        all_predictions, all_targets = accelerator.gather_for_metrics((predictions, batch))
-        metric.add_batch(all_predictions, all_targets)
-        metric.add_batch(predictions=predictions, references=batch["labels"])
+        all_predictions, all_targets = accelerator.gather_for_metrics((predictions, batch["labels"]))
+        metric.add_batch(predictions=all_predictions, references=all_targets)
 
     accelerator.print(f"metric: {metric.compute()}")
 
     save_path = f"/mnt/models/epoch-{epoch + 1}"
-    model.save_pretrained(save_path)
+    unwraped_model = accelerator.unwrap_model(model)
+    unwraped_model.save_pretrained(save_path)
     accelerator.print(f"model saved at {save_path}")
