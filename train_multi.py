@@ -51,7 +51,7 @@ tokenized_datasets.set_format("torch")
 
 # Create dataloader
 if args.test:
-    accelerate.print("This process is test mode")
+    accelerator.print("This process is test mode")
     small_train_dataset = tokenized_datasets["train"].shuffle(seed=77).select(range(160))
     small_valid_dataset = tokenized_datasets["valid"].shuffle(seed=77).select(range(20))
     train_dataloader = DataLoader(small_train_dataset, shuffle=True, batch_size=args.batch_size)
@@ -104,12 +104,12 @@ model, optimizer, train_dataloader, valid_dataloader, lr_scheduler = accelerator
 
 # Train
 for epoch in range(args.epoch):
-    accelerate.print("-" * 20, f"epoch {epoch + 1}", "-" * 20)
+    accelerator.print("-" * 20, f"epoch {epoch + 1}", "-" * 20)
 
     model.train()
     loss_per_epoch = 0
     for step, batch in enumerate(train_dataloader):
-        batch = {k: v.to(device) for k, v in batch.items()}
+        batch = {k: v for k, v in batch.items()}
         outputs = model(**batch)
         loss = outputs.loss
         loss_per_epoch += loss
@@ -118,17 +118,17 @@ for epoch in range(args.epoch):
         optimizer.step()
         lr_scheduler.step()
         optimizer.zero_grad()
-        accelerate.print(f"[train] step: {step + 1}/{len(train_dataloader)}, loss: {loss_per_epoch / (step + 1)}")
+        accelerator.print(f"[train] step: {step + 1}/{len(train_dataloader)}, loss: {loss_per_epoch / (step + 1)}")
 
     model.eval()
     loss_per_epoch = 0
     for step, batch in enumerate(valid_dataloader):
-        batch = {k: v.to(device) for k, v in batch.items()}
+        batch = {k: v for k, v in batch.items()}
         with torch.no_grad():
             outputs = model(**batch)
 
         loss_per_epoch += outputs.loss
-        accelerate.print(f"[valid] step: {step + 1}/{len(valid_dataloader)}, loss: {loss_per_epoch / (step + 1)}")
+        accelerator.print(f"[valid] step: {step + 1}/{len(valid_dataloader)}, loss: {loss_per_epoch / (step + 1)}")
 
         logits = outputs.logits
         predictions = torch.argmax(logits, dim=-1)
@@ -136,8 +136,8 @@ for epoch in range(args.epoch):
         metric.add_batch(all_predictions, all_targets)
         metric.add_batch(predictions=predictions, references=batch["labels"])
 
-    accelerate.print(f"metric: {metric.compute()}")
+    accelerator.print(f"metric: {metric.compute()}")
 
     save_path = f"/mnt/models/epoch-{epoch + 1}"
     model.save_pretrained(save_path)
-    accelerate.print(f"model saved at {save_path}")
+    accelerator.print(f"model saved at {save_path}")
