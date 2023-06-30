@@ -15,6 +15,7 @@ parser.add_argument("-e", "--epoch", type=int, required=True)
 parser.add_argument("-b", "--batch_size", type=int, required=True)
 parser.add_argument("-g", "--gpu", action="store_true", default=False)
 parser.add_argument("-t", "--test", action="store_true", default=False)
+parser.add_argument("-hf", "--half", action="store_true", default=False)
 args = parser.parse_args()
 
 
@@ -23,9 +24,11 @@ model_name = "classla/xlm-roberta-base-multilingual-text-genre-classifier"
 
 
 # Create dataset
+train_data_path = "./data/train_half.csv" if args.half else "./data/train.csv"
+valid_data_path = "./data/valid_half.csv" if args.half else "./data/valid.csv"
 datasets = DatasetDict()
-datasets["train"] = load_dataset("csv", data_files="/mnt/data/train.csv")["train"]
-datasets["valid"] = load_dataset("csv", data_files="/mnt/data/valid.csv")["train"]
+datasets["train"] = load_dataset("csv", data_files=train_data_path)["train"]
+datasets["valid"] = load_dataset("csv", data_files=valid_data_path)["train"]
 
 
 # Load tokenizer and tokenize
@@ -58,7 +61,8 @@ else:
 
 
 # Prepare id-label mapper
-with open("/mnt/data/id_to_label.csv", "r") as f:
+id_to_label_path = "./data/id_to_label_half.csv" if args.half else "./data/id_to_label.csv"
+with open(id_to_label_path, "r") as f:
     reader = csv.DictReader(f)
     id2label = {row["id"]: row["label"] for row in reader}
 label2id = {label: id for id, label in id2label.items()}
@@ -67,7 +71,7 @@ label2id = {label: id for id, label in id2label.items()}
 # Load model
 model = AutoModelForSequenceClassification.from_pretrained(
     model_name,
-    num_labels=18,
+    num_labels=9 if args.half else 18,
     id2label=id2label,
     label2id=label2id,
     ignore_mismatched_sizes=True,
@@ -91,10 +95,10 @@ lr_scheduler = get_scheduler(
 # Set device and load metric method
 if args.gpu:
     device = torch.device("cuda")
-    print("User GPU")
+    print("Use GPU")
 else:
     device = torch.device("cpu")
-    print("User CPU")
+    print("Use CPU")
 model.to(device)
 metric = evaluate.load("accuracy")
 
@@ -133,6 +137,6 @@ for epoch in range(args.epoch):
 
     print(f"metric: {metric.compute()}")
 
-    save_path = f"/mnt/models/epoch-{epoch + 1}"
+    save_path = f"./models/epoch-{epoch + 1}"
     model.save_pretrained(save_path)
     print(f"model saved at {save_path}")
