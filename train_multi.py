@@ -1,4 +1,5 @@
 import csv
+import time
 import torch
 import argparse
 import evaluate
@@ -19,6 +20,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("-e", "--epoch", type=int, required=True)
 parser.add_argument("-b", "--batch_size", type=int, required=True)
 parser.add_argument("-t", "--test", action="store_true", default=False)
+parser.add_argument("-hf", "--half", action="store_true", default=False)
 args = parser.parse_args()
 
 
@@ -27,9 +29,11 @@ model_name = "classla/xlm-roberta-base-multilingual-text-genre-classifier"
 
 
 # Create dataset
+train_data_path = "./data/train_half.csv" if args.half else "./data/train.csv"
+valid_data_path = "./data/valid_half.csv" if args.half else "./data/valid.csv"
 datasets = DatasetDict()
-datasets["train"] = load_dataset("csv", data_files="/mnt/data/train.csv")["train"]
-datasets["valid"] = load_dataset("csv", data_files="/mnt/data/valid.csv")["train"]
+datasets["train"] = load_dataset("csv", data_files=train_data_path)["train"]
+datasets["valid"] = load_dataset("csv", data_files=valid_data_path)["train"]
 
 
 # Load tokenizer and tokenize
@@ -51,9 +55,9 @@ tokenized_datasets.set_format("torch")
 
 # Create dataloader
 if args.test:
-    accelerator.print("This process is test mode")
+    # accelerator.print("This process is test mode")
     small_train_dataset = tokenized_datasets["train"].shuffle(seed=77).select(range(160))
-    small_valid_dataset = tokenized_datasets["valid"].shuffle(seed=77).select(range(20))
+    small_valid_dataset = tokenized_datasets["valid"].shuffle(seed=77).select(range(32))
     train_dataloader = DataLoader(small_train_dataset, shuffle=True, batch_size=args.batch_size)
     valid_dataloader = DataLoader(small_valid_dataset, batch_size=args.batch_size)
 else:
@@ -62,7 +66,8 @@ else:
 
 
 # Prepare id-label mapper
-with open("/mnt/data/id_to_label.csv", "r") as f:
+id_to_label_path = "./data/id_to_label_half.csv" if args.half else "./data/id_to_label.csv"
+with open(id_to_label_path, "r") as f:
     reader = csv.DictReader(f)
     id2label = {row["id"]: row["label"] for row in reader}
 label2id = {label: id for id, label in id2label.items()}
@@ -71,7 +76,7 @@ label2id = {label: id for id, label in id2label.items()}
 # Load model
 model = AutoModelForSequenceClassification.from_pretrained(
     model_name,
-    num_labels=18,
+    num_labels=9 if args.half else 18,
     id2label=id2label,
     label2id=label2id,
     ignore_mismatched_sizes=True,
@@ -103,6 +108,7 @@ model, optimizer, train_dataloader, valid_dataloader, lr_scheduler = accelerator
 
 
 # Train
+start_time = time.time()
 for epoch in range(args.epoch):
     accelerator.print("-" * 20, f"epoch {epoch + 1}", "-" * 20)
 
@@ -118,8 +124,8 @@ for epoch in range(args.epoch):
         optimizer.step()
         lr_scheduler.step()
         optimizer.zero_grad()
-        if (step + 1) % 500 == 0:
-            accelerator.print(f"[train] step: {step + 1}/{len(train_dataloader)}, loss: {loss_per_epoch / (step + 1)}")
+        
+        accelerator.print(f"[train] step: {step + 1}/{len(train_dataloader)}, loss: {loss_per_epoch / (step + 1)}")
 
     model.eval()
     loss_per_epoch = 0
@@ -129,17 +135,18 @@ for epoch in range(args.epoch):
             outputs = model(**batch)
 
         loss_per_epoch += outputs.loss
-        if (step + 1) % 500 == 0:
-            accelerator.print(f"[valid] step: {step + 1}/{len(valid_dataloader)}, loss: {loss_per_epoch / (step + 1)}")
+        
+        accelerator.print(f"[valid] step: {step + 1}/{len(valid_dataloader)}, loss: {loss_per_epoch / (step + 1)}")
 
-        logits = outputs.logits
-        predictions = torch.argmax(logits, dim=-1)
-        all_predictions, all_targets = accelerator.gather_for_metrics((predictions, batch["labels"]))
-        metric.add_batch(predictions=all_predictions, references=all_targets)
+        # logits = outputs.logits
+        # predictions = torch.argmax(logits, dim=-1)
+        # all_predictions, all_targets = accelerator.gather_for_metrics((predictions, batch["labels"]))
+        # metric.add_batch(predictions=all_predictions, references=all_targets)
 
-    accelerator.print(f"metric: {metric.compute()}")
+    # accelerator.print(f"metric: {metric.compute()}")
 
-    save_path = f"/mnt/models/epoch-{epoch + 1}"
-    unwraped_model = accelerator.unwrap_model(model)
-    unwraped_model.save_pretrained(save_path)
-    accelerator.print(f"model saved at {save_path}")
+    # save_path = f"./models/epoch-{epoch + 1}"
+    # unwraped_model = accelerator.unwrap_model(model)
+    # unwraped_model.save_pretrained(save_path)
+    # accelerator.print(f"model saved: {save_path}")
+    accelerator.print(f"elapsed time: {time.time() - start_time} sec")

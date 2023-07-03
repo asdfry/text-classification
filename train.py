@@ -1,4 +1,5 @@
 import csv
+import time
 import torch
 import argparse
 import evaluate
@@ -50,9 +51,9 @@ tokenized_datasets.set_format("torch")
 
 # Create dataloader
 if args.test:
-    print("This process is test mode")
+    # print("This process is test mode")
     small_train_dataset = tokenized_datasets["train"].shuffle(seed=77).select(range(160))
-    small_valid_dataset = tokenized_datasets["valid"].shuffle(seed=77).select(range(20))
+    small_valid_dataset = tokenized_datasets["valid"].shuffle(seed=77).select(range(32))
     train_dataloader = DataLoader(small_train_dataset, shuffle=True, batch_size=args.batch_size)
     valid_dataloader = DataLoader(small_valid_dataset, batch_size=args.batch_size)
 else:
@@ -95,15 +96,16 @@ lr_scheduler = get_scheduler(
 # Set device and load metric method
 if args.gpu:
     device = torch.device("cuda")
-    print("Use GPU")
+    # print("Use GPU")
 else:
     device = torch.device("cpu")
-    print("Use CPU")
+    # print("Use CPU")
 model.to(device)
 metric = evaluate.load("accuracy")
 
 
 # Train
+start_time = time.time()
 for epoch in range(args.epoch):
     print("-" * 20, f"epoch {epoch + 1}", "-" * 20)
 
@@ -119,6 +121,7 @@ for epoch in range(args.epoch):
         optimizer.step()
         lr_scheduler.step()
         optimizer.zero_grad()
+        
         print(f"[train] step: {step + 1}/{len(train_dataloader)}, loss: {loss_per_epoch / (step + 1)}")
 
     model.eval()
@@ -129,14 +132,16 @@ for epoch in range(args.epoch):
             outputs = model(**batch)
 
         loss_per_epoch += outputs.loss
+        
         print(f"[valid] step: {step + 1}/{len(valid_dataloader)}, loss: {loss_per_epoch / (step + 1)}")
 
-        logits = outputs.logits
-        predictions = torch.argmax(logits, dim=-1)
-        metric.add_batch(predictions=predictions, references=batch["labels"])
+        # logits = outputs.logits
+        # predictions = torch.argmax(logits, dim=-1)
+        # metric.add_batch(predictions=predictions, references=batch["labels"])
 
-    print(f"metric: {metric.compute()}")
+    # print(f"metric: {metric.compute()}")
 
-    save_path = f"./models/epoch-{epoch + 1}"
-    model.save_pretrained(save_path)
-    print(f"model saved at {save_path}")
+    # save_path = f"./models/epoch-{epoch + 1}"
+    # model.save_pretrained(save_path)
+    # print(f"model saved: {save_path}")
+    print(f"elapsed time: {time.time() - start_time} sec")
