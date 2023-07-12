@@ -1,12 +1,14 @@
 import csv
 import time
 import torch
+import logging
 import argparse
 import evaluate
 
 from torch.optim import AdamW
 from accelerate import Accelerator
 from torch.utils.data import DataLoader
+from accelerate.logging import get_logger
 from datasets import load_dataset, DatasetDict
 from transformers import AutoTokenizer, AutoModelForSequenceClassification, get_scheduler
 
@@ -19,9 +21,19 @@ accelerator = Accelerator()
 parser = argparse.ArgumentParser()
 parser.add_argument("-e", "--epoch", type=int, required=True)
 parser.add_argument("-b", "--batch_size", type=int, required=True)
-parser.add_argument("-t", "--test", action="store_true", default=False)
-parser.add_argument("-hf", "--half", action="store_true", default=False)
+parser.add_argument("-g", "--gpu", type=int, required=True)
+parser.add_argument("-t", "--test", action="store_true")
+parser.add_argument("-hf", "--half", action="store_true")
 args = parser.parse_args()
+
+
+# Set logger
+logging.basicConfig(
+    format="%(asctime)s\t%(levelname)s\t%(message)s",
+    level=logging.INFO,
+    handlers=[logging.FileHandler(f"logs/log_gpu_{args.gpu}.log"), logging.StreamHandler()],
+)
+logger = get_logger(__name__)
 
 
 # Prefix
@@ -56,8 +68,8 @@ tokenized_datasets.set_format("torch")
 # Create dataloader
 if args.test:
     # accelerator.print("This process is test mode")
-    small_train_dataset = tokenized_datasets["train"].shuffle(seed=77).select(range(160))
-    small_valid_dataset = tokenized_datasets["valid"].shuffle(seed=77).select(range(32))
+    small_train_dataset = tokenized_datasets["train"].shuffle(seed=77).select(range(1600))
+    small_valid_dataset = tokenized_datasets["valid"].shuffle(seed=77).select(range(320))
     train_dataloader = DataLoader(small_train_dataset, shuffle=True, batch_size=args.batch_size)
     valid_dataloader = DataLoader(small_valid_dataset, batch_size=args.batch_size)
 else:
@@ -107,11 +119,10 @@ model, optimizer, train_dataloader, valid_dataloader, lr_scheduler = accelerator
 )
 
 
-# Train
+# Iterate data loader
 start_time = time.time()
 for epoch in range(args.epoch):
-    accelerator.print("-" * 20, f"epoch {epoch + 1}", "-" * 20)
-
+    # Train
     model.train()
     loss_per_epoch = 0
     for step, batch in enumerate(train_dataloader):
@@ -124,9 +135,10 @@ for epoch in range(args.epoch):
         optimizer.step()
         lr_scheduler.step()
         optimizer.zero_grad()
-        
-        accelerator.print(f"[train] step: {step + 1}/{len(train_dataloader)}, loss: {loss_per_epoch / (step + 1)}")
 
+        logger.info(f"[epoch {epoch+1}] train step: {step + 1}/{len(train_dataloader)}, loss: {loss_per_epoch / (step + 1)}")
+
+    # Valid
     model.eval()
     loss_per_epoch = 0
     for step, batch in enumerate(valid_dataloader):
@@ -135,18 +147,18 @@ for epoch in range(args.epoch):
             outputs = model(**batch)
 
         loss_per_epoch += outputs.loss
-        
-        accelerator.print(f"[valid] step: {step + 1}/{len(valid_dataloader)}, loss: {loss_per_epoch / (step + 1)}")
 
-        # logits = outputs.logits
-        # predictions = torch.argmax(logits, dim=-1)
-        # all_predictions, all_targets = accelerator.gather_for_metrics((predictions, batch["labels"]))
-        # metric.add_batch(predictions=all_predictions, references=all_targets)
+        logger.info(f"[epoch {epoch+1}] valid step: {step + 1}/{len(valid_dataloader)}, loss: {loss_per_epoch / (step + 1)}")
 
-    # accelerator.print(f"metric: {metric.compute()}")
+        logits = outputs.logits
+        predictions = torch.argmax(logits, dim=-1)
+        all_predictions, all_targets = accelerator.gather_for_metrics((predictions, batch["labels"]))
+        metric.add_batch(predictions=all_predictions, references=all_targets)
+
+    logger.info(f"[epoch {epoch+1}] metric: {metric.compute()}")
 
     # save_path = f"./models/epoch-{epoch + 1}"
     # unwraped_model = accelerator.unwrap_model(model)
     # unwraped_model.save_pretrained(save_path)
-    # accelerator.print(f"model saved: {save_path}")
-    accelerator.print(f"elapsed time: {time.time() - start_time} sec")
+    # logger.info(f"model saved: {save_path}")
+    logger.info(f"[epoch {epoch+1}] elapsed time: {time.time() - start_time} sec")
