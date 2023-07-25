@@ -10,8 +10,9 @@ services:
     command: ["/bin/bash", "-c", "/usr/sbin/sshd && sleep infinity"]
     volumes:
       - /home/jsh/.ssh/aws-ten-jsh.pem:/root/.ssh/aws-ten-jsh.pem:ro
-      - /home/jsh/workspaces/projects/text-classification/hostfile:/root/hostfile:ro
-      - /home/jsh/workspaces/projects/text-classification/configs/default_config.yaml:/root/.cache/huggingface/accelerate/default_config.yaml:rw
+      - ./logs:/root/logs:rw
+      - ./hostfile:/root/hostfile:ro
+      - ./configs/default_config.yaml:/root/.cache/huggingface/accelerate/default_config.yaml:rw
     ports:
       - 1041:22
     deploy:
