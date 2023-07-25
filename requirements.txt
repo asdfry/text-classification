@@ -4,4 +4,4 @@ evaluate==0.4.0
 scikit-learn==1.2.2
 accelerate==0.20.3
 nvitop==1.1.2
-deepspeed=0.9.5
+deepspeed==0.9.5
