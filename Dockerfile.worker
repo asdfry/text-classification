@@ -1,0 +1,35 @@
+FROM nvidia/cuda:11.8.0-runtime-ubuntu22.04
+
+USER root
+
+WORKDIR /root
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Set compute capability
+ENV TORCH_CUDA_ARCH_LIST=9.0
+
+# Copy files that required for training
+COPY data data
+COPY logs logs
+COPY train_multi.py train_multi.py
+
+# Set for ssh
+RUN mkdir /root/.ssh
+COPY authorized_keys /root/.ssh/authorized_keys
+
+# Set locale
+RUN apt-get update && \
+    apt-get install -y language-pack-ko && \
+    echo export LC_ALL="ko_KR.UTF-8" >> ~/.bashrc
+
+# Install ssh-server
+RUN mkdir -p /var/run/sshd && \
+    apt-get install -y openssh-server
+
+# Install pip and install libraries
+COPY requirements.txt requirements.txt
+RUN apt-get install -y curl python3.10-distutils && \
+    curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
+    python3 get-pip.py && \
+    pip install --no-cache-dir -r requirements.txt
