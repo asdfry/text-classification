@@ -10,13 +10,13 @@ ENV DEBIAN_FRONTEND=noninteractive
 ENV TORCH_CUDA_ARCH_LIST=9.0
 
 # Copy files that required for training
-COPY data data
 COPY logs logs
 COPY train_multi.py train_multi.py
+COPY hub .cache/huggingface/hub
 
 # Set for ssh
-RUN mkdir /root/.ssh
-COPY authorized_keys /root/.ssh/authorized_keys
+RUN mkdir .ssh
+COPY authorized_keys .ssh/authorized_keys
 
 # Set locale
 RUN apt-get update && \

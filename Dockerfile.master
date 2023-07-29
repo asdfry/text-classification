@@ -10,17 +10,18 @@ ENV DEBIAN_FRONTEND=noninteractive
 ENV TORCH_CUDA_ARCH_LIST=9.0
 
 # Copy files that required for training
-COPY data data
+COPY create_config.py create_config.py
 COPY train_multi.py train_multi.py
+COPY hub .cache/huggingface/hub
 
-# Install pdsh
+# Install pdsh & vim
 RUN apt-get update && \
-    apt-get install -y pdsh
+    apt-get install -y pdsh vim
 
 # Set for ssh
-RUN mkdir /root/.ssh
-COPY authorized_keys /root/.ssh/authorized_keys
-COPY configs/ssh.config /root/.ssh/config
+RUN mkdir .ssh
+COPY authorized_keys .ssh/authorized_keys
+# COPY configs/ssh.config .ssh/config
 
 # Set locale
 RUN apt-get install -y language-pack-ko && \
