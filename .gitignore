@@ -164,3 +164,4 @@ logs/*.log
 authorized_keys
 .vscode/
 hub/
+key.pem

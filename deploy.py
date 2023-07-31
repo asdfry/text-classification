@@ -12,46 +12,18 @@ def create_master(node, port, gpu):
             "containers": [
                 {
                     "name": "app",
-                    "image": "asdfry/torch201-cuda118:master",
+                    "image": "asdfry/torch201-cuda118:accelerate-master",
                     "imagePullPolicy": "Always",
                     "command": [
                         "/bin/bash",
                         "-c",
                         f"sed -i 's/^#Port 22$/Port {port}/' /etc/ssh/sshd_config && /usr/sbin/sshd && sleep infinity",
                     ],
-                    "volumeMounts": [
-                        {"name": "data", "mountPath": "/root/data"},
-                        {"name": "logs", "mountPath": "/root/logs"},
-                        {"name": "pem", "mountPath": "/root/.ssh/aws-ten-jsh.pem"},
-                    ],
                     "ports": [{"containerPort": port}],
                     "resources": {
                         "limits": {
                             gpu: "1",
                         }
-                    },
-                },
-            ],
-            "volumes": [
-                {
-                    "name": "data",
-                    "hostPath": {
-                        "path": "/home/jsh/workspaces/projects/text-classification/data",
-                        "type": "Directory",
-                    },
-                },
-                {
-                    "name": "logs",
-                    "hostPath": {
-                        "path": "/home/jsh/workspaces/projects/text-classification/logs",
-                        "type": "Directory",
-                    },
-                },
-                {
-                    "name": "pem",
-                    "hostPath": {
-                        "path": "/home/jsh/.ssh/aws-ten-jsh.pem",
-                        "type": "File",
                     },
                 },
             ],
@@ -72,30 +44,18 @@ def create_worker(node, port, gpu):
             "containers": [
                 {
                     "name": "app",
-                    "image": "asdfry/torch201-cuda118:worker",
+                    "image": "asdfry/torch201-cuda118:accelerate-worker",
                     "imagePullPolicy": "Always",
                     "command": [
                         "/bin/bash",
                         "-c",
                         f"sed -i 's/^#Port 22$/Port {port}/' /etc/ssh/sshd_config && /usr/sbin/sshd && sleep infinity",
                     ],
-                    "volumeMounts": [
-                        {"name": "data", "mountPath": "/root/data"},
-                    ],
                     "ports": [{"containerPort": port}],
                     "resources": {
                         "limits": {
                             gpu: "1",
                         }
-                    },
-                },
-            ],
-            "volumes": [
-                {
-                    "name": "data",
-                    "hostPath": {
-                        "path": "/home/jsh/workspaces/projects/text-classification/data",
-                        "type": "Directory",
                     },
                 },
             ],
@@ -111,18 +71,18 @@ if __name__ == "__main__":
 
     namespace = "jsh"
     worker_num = 1
-    node_num = 2
+    master_node_num = 2
     slot_count = 2
     total_node = 2
 
     gpu = "ten1010.io/gpu-nvidia-a100-pcie-40gb"
-    node = f"k8s-node-{node_num}"
+    node = f"k8s-node-{master_node_num}"
     create_master(node, 1041, gpu)
     for i in range(1, slot_count):
         create_worker(node, 1041 + i, gpu)
 
     gpu = "ten1010.io/gpu-tesla-t4"
     for i in range(1, total_node):
-        node = f"k8s-node-{node_num + i}"
+        node = f"k8s-node-{master_node_num + i}"
         for i in range(0, slot_count):
             create_worker(node, 1041 + i, gpu)
