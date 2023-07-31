@@ -162,4 +162,5 @@ data/
 models/
 logs/*.log
 authorized_keys
-.vscode
+.vscode/
+hub/
