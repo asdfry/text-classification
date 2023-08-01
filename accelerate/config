@@ -1,0 +1,15 @@
+Host mst
+    HostName master
+    IdentityFile /root/.ssh/key.pem
+
+Host w1
+    HostName worker-1
+    IdentityFile /root/.ssh/key.pem
+
+Host w2
+    HostName worker-2
+    IdentityFile /root/.ssh/key.pem
+
+Host w3
+    HostName worker-3
+    IdentityFile /root/.ssh/key.pem

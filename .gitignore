@@ -163,5 +163,5 @@ models/
 logs/*.log
 authorized_keys
 .vscode/
-hub/
 key.pem
+xlm-roberta-base-multilingual-text-genre-classifier

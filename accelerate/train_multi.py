@@ -37,7 +37,7 @@ logger = get_logger(__name__)
 
 
 # Prefix
-model_name = "classla/xlm-roberta-base-multilingual-text-genre-classifier"
+model_name = "./pretrained_model"
 
 
 # Create dataset

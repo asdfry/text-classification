@@ -6,29 +6,32 @@ WORKDIR /root
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Set compute capability
+# Set env for torch (compute capability)
 ENV TORCH_CUDA_ARCH_LIST=9.0
+
+# Set env for huggingface offline mode
+ENV TRANSFORMERS_OFFLINE=1
+ENV HF_DATASETS_OFFLINE=1
 
 # Copy files that required for training
 RUN mkdir logs
-COPY hub .cache/huggingface/hub
+COPY data data
 COPY train_multi.py train_multi.py
+COPY create_config.py create_config.py
+COPY xlm-roberta-base-multilingual-text-genre-classifier pretrained_model
 
-# Set locale
+# Set locale and Install packages
 RUN apt-get update && \
-    apt-get install -y language-pack-ko && \
-    echo export LC_ALL="ko_KR.UTF-8" >> ~/.bashrc
+    apt-get install -y language-pack-ko pdsh vim openssh-server && \
+    echo export LC_ALL="ko_KR.UTF-8" >> ~/.bashrc && \
+    mkdir -p /var/run/sshd
 
 # Set for ssh
 RUN mkdir .ssh
 COPY key.pem .ssh/key.pem
 COPY authorized_keys .ssh/authorized_keys
 
-# Install ssh-server
-RUN mkdir -p /var/run/sshd && \
-    apt-get install -y openssh-server
-
-# Install pip and install libraries
+# Install python & pip and Install libraries
 COPY requirements.txt requirements.txt
 RUN apt-get install -y curl python3.10-distutils && \
     curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \

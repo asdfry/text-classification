@@ -1,0 +1,64 @@
+version: "3.6"
+
+services:
+
+  master:
+    image: asdfry/torch201-cuda118:horovod-master
+    build:
+      context: .
+      dockerfile: Dockerfile.master
+    command: ["/bin/bash", "-c", "/usr/sbin/sshd && sleep infinity"]
+    volumes:
+      - ./logs:/root/logs:rw
+      - ./config:/root/.ssh/config:rw
+    ports:
+      - 1041:22
+    deploy:
+      resources:
+        reservations:
+          devices:
+          - driver: nvidia
+            device_ids: ['0', '1']
+            capabilities: [gpu]
+
+  worker-1:
+    image: asdfry/torch201-cuda118:horovod-worker
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    command: ["/bin/bash", "-c", "/usr/sbin/sshd && sleep infinity"]
+    deploy:
+      resources:
+        reservations:
+          devices:
+          - driver: nvidia
+            device_ids: ['2', '3']
+            capabilities: [gpu]
+
+  # worker-2:
+  #   image: asdfry/torch201-cuda118:horovod-worker
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile.worker
+  #   command: ["/bin/bash", "-c", "/usr/sbin/sshd && sleep infinity"]
+  #   deploy:
+  #     resources:
+  #       reservations:
+  #         devices:
+  #         - driver: nvidia
+  #           device_ids: ['4', '5']
+  #           capabilities: [gpu]
+
+  # worker-3:
+  #   image: asdfry/torch201-cuda118:horovod-worker
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile.worker
+  #   command: ["/bin/bash", "-c", "/usr/sbin/sshd && sleep infinity"]
+  #   deploy:
+  #     resources:
+  #       reservations:
+  #         devices:
+  #         - driver: nvidia
+  #           device_ids: ['6', '7']
+  #           capabilities: [gpu]

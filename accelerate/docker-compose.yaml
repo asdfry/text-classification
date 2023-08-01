@@ -10,8 +10,8 @@ services:
     command: ["/bin/bash", "-c", "/usr/sbin/sshd && sleep infinity"]
     volumes:
       - ./logs:/root/logs:rw
-      - ./hostfile:/root/hostfile:ro
-      - ./configs/default_config.yaml:/root/.cache/huggingface/accelerate/default_config.yaml:rw
+      - ./hostfile:/root/hostfile:rw
+      - ./config:/root/.ssh/config:rw
     ports:
       - 1041:22
     deploy:
