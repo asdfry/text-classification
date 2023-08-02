@@ -1,12 +1,12 @@
 def write_master_config(network_addr: str, host_addr: int, port: int):
     hostname = f"{network_addr}.{host_addr}"
-    # with open("config", "a") as f:
-    #     f.write(f"Host master\n")
-    #     f.write(f"    HostName {hostname}\n")
-    #     f.write(f"    Port {port}\n")
-    #     f.write(f"    User {user}\n")
-    #     f.write(f"    IdentityFile {identity_file}\n")
-    #     f.write(f"    StrictHostKeyChecking no\n\n")
+    with open(".ssh/config", "a") as f:
+        f.write(f"Host master\n")
+        f.write(f"    HostName {hostname}\n")
+        f.write(f"    Port {port}\n")
+        f.write(f"    User {user}\n")
+        f.write(f"    IdentityFile {identity_file}\n")
+        f.write(f"    StrictHostKeyChecking no\n\n")
     with open("run.sh", "a") as f:
         f.write(f"horovodrun -np $1 -H master:1,\\\n")
 
@@ -14,13 +14,13 @@ def write_master_config(network_addr: str, host_addr: int, port: int):
 def write_worker_config(network_addr: str, host_addr: int, port: int):
     global worker_num
     hostname = f"{network_addr}.{host_addr}"
-    # with open("config", "a") as f:
-    #     f.write(f"Host worker-{worker_num}\n")
-    #     f.write(f"    HostName {hostname}\n")
-    #     f.write(f"    Port {port}\n")
-    #     f.write(f"    User {user}\n")
-    #     f.write(f"    IdentityFile {identity_file}\n")
-    #     f.write(f"    StrictHostKeyChecking no\n\n")
+    with open(".ssh/config", "a") as f:
+        f.write(f"Host worker-{worker_num}\n")
+        f.write(f"    HostName {hostname}\n")
+        f.write(f"    Port {port}\n")
+        f.write(f"    User {user}\n")
+        f.write(f"    IdentityFile {identity_file}\n")
+        f.write(f"    StrictHostKeyChecking no\n\n")
     with open("run.sh", "a") as f:
         f.write(f"worker-{worker_num}:1,")
     worker_num += 1
