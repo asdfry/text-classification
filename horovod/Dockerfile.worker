@@ -20,13 +20,11 @@ ENV HF_DATASETS_OFFLINE=1
 RUN mkdir logs
 COPY data data
 COPY train_multi.py train_multi.py
-COPY create_config.py create_config.py
 COPY xlm-roberta-base-multilingual-text-genre-classifier pretrained_model
 
 # Set locale and Install packages
 RUN apt-get update && \
     apt-get install -y openssh-server && \
-    echo export LC_ALL="ko_KR.UTF-8" >> ~/.bashrc && \
     mkdir -p /var/run/sshd
 
 # Set for ssh
@@ -42,4 +40,4 @@ RUN apt-get install -y curl python3.10-distutils && \
 
 # Install horovod
 RUN apt-get install -y cmake python3.10-dev && \
-    pip install horovod[pytorch]==0.28.1
+    HOROVOD_GPU_OPERATIONS=NCCL pip install horovod[pytorch]==0.28.1

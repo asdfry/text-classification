@@ -22,7 +22,6 @@ COPY xlm-roberta-base-multilingual-text-genre-classifier pretrained_model
 # Set locale and Install packages
 RUN apt-get update && \
     apt-get install -y openssh-server && \
-    echo export LC_ALL="ko_KR.UTF-8" >> ~/.bashrc && \
     mkdir -p /var/run/sshd
 
 # Set for ssh
