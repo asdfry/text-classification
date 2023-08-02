@@ -2,8 +2,7 @@ FROM python:3.10.6-slim
 
 WORKDIR /root
 
-COPY deploy_accelerate.py deploy_accelerate.py
-COPY deploy_horovod.py deploy_horovod.py
+COPY deploy.py deploy.py
 
 RUN echo "alias ll='ls -al'" >> ~/.bashrc && \
     apt-get update && \
