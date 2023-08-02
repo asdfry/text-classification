@@ -1,3 +1,5 @@
+import argparse
+
 from kubernetes import client, config
 
 
@@ -12,12 +14,12 @@ def create_master(node, port, gpu):
             "containers": [
                 {
                     "name": "app",
-                    "image": "asdfry/torch201-cuda118:accelerate-master",
+                    "image": "asdfry/torch201-cuda118:horovod-master",
                     "imagePullPolicy": "Always",
                     "command": [
                         "/bin/bash",
                         "-c",
-                        f"sed -i 's/^#Port 22$/Port {port}/' /etc/ssh/sshd_config && /usr/sbin/sshd && sleep infinity",
+                        f"/usr/sbin/sshd -p {port} && sleep infinity",
                     ],
                     "ports": [{"containerPort": port}],
                     "resources": {
@@ -44,12 +46,12 @@ def create_worker(node, port, gpu):
             "containers": [
                 {
                     "name": "app",
-                    "image": "asdfry/torch201-cuda118:accelerate-worker",
+                    "image": "asdfry/torch201-cuda118:horovod-worker",
                     "imagePullPolicy": "Always",
                     "command": [
                         "/bin/bash",
                         "-c",
-                        f"sed -i 's/^#Port 22$/Port {port}/' /etc/ssh/sshd_config && /usr/sbin/sshd && sleep infinity",
+                        f"/usr/sbin/sshd -p {port} && sleep infinity",
                     ],
                     "ports": [{"containerPort": port}],
                     "resources": {
@@ -66,23 +68,28 @@ def create_worker(node, port, gpu):
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-m", "--master_node_num", type=int, required=True)
+    parser.add_argument("-s", "--slot_size", type=int, required=True)
+    parser.add_argument("-t", "--total_node", type=int, required=True)
+    parser.add_argument("-gm", "--gpu_master", type=str, required=True)
+    parser.add_argument("-gw", "--gpu_worker", type=str, required=True)
+    args = parser.parse_args()
+
     config.load_kube_config()
     v1 = client.CoreV1Api()
 
     namespace = "jsh"
     worker_num = 1
-    master_node_num = 2
-    slot_count = 2
-    total_node = 2
 
     gpu = "ten1010.io/gpu-nvidia-a100-pcie-40gb"
-    node = f"k8s-node-{master_node_num}"
+    node = f"k8s-node-{args.master_node_num}"
     create_master(node, 1041, gpu)
-    for i in range(1, slot_count):
+    for i in range(1, args.slot_size):
         create_worker(node, 1041 + i, gpu)
 
     gpu = "ten1010.io/gpu-tesla-t4"
-    for i in range(1, total_node):
-        node = f"k8s-node-{master_node_num + i}"
-        for i in range(0, slot_count):
+    for i in range(1, args.total_node):
+        node = f"k8s-node-{args.master_node_num + i}"
+        for i in range(0, args.slot_size):
             create_worker(node, 1041 + i, gpu)
