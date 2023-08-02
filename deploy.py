@@ -14,7 +14,7 @@ def create_master(node, port, gpu):
             "containers": [
                 {
                     "name": "app",
-                    "image": "asdfry/torch201-cuda118:accelerate-master",
+                    "image": f"{args.image_name}-master",
                     "imagePullPolicy": "Always",
                     "command": [
                         "/bin/bash",
@@ -46,7 +46,7 @@ def create_worker(node, port, gpu):
             "containers": [
                 {
                     "name": "app",
-                    "image": "asdfry/torch201-cuda118:accelerate-worker",
+                    "image": f"{args.image_name}-worker",
                     "imagePullPolicy": "Always",
                     "command": [
                         "/bin/bash",
@@ -69,10 +69,10 @@ def create_worker(node, port, gpu):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("-mn", "--method_name", type=str, required=True, choices=["art", "hvd"])
-    parser.add_argument("-mnn", "--master_node_num", type=int, required=True)
-    parser.add_argument("-ss", "--slot_size", type=int, required=True)
-    parser.add_argument("-tn", "--total_node", type=int, required=True)
+    parser.add_argument("-s", "--slot_size", type=int, required=True)
+    parser.add_argument("-t", "--total_node", type=int, required=True)
+    parser.add_argument("-m", "--master_node_num", type=int, required=True)
+    parser.add_argument("-i", "--image_name", type=str, required=True)
     parser.add_argument("-gm", "--gpu_master", type=str, required=True)
     parser.add_argument("-gw", "--gpu_worker", type=str, required=True)
     args = parser.parse_args()
@@ -83,14 +83,12 @@ if __name__ == "__main__":
     namespace = "jsh"
     worker_num = 1
 
-    gpu = args.gpu_master
     node = f"k8s-node-{args.master_node_num}"
-    create_master(node, 1041, gpu)
+    create_master(node, 1041, args.gpu_master)
     for i in range(1, args.slot_size):
-        create_worker(node, 1041 + i, gpu)
+        create_worker(node, 1041 + i, args.gpu_master)
 
-    gpu = args.gpu_worker
     for i in range(1, args.total_node):
         node = f"k8s-node-{args.master_node_num + i}"
         for i in range(0, args.slot_size):
-            create_worker(node, 1041 + i, gpu)
+            create_worker(node, 1041 + i, args.gpu_worker)
