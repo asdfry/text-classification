@@ -9,8 +9,10 @@ ENV DEBIAN_FRONTEND=noninteractive
 # Set env for torch (compute capability)
 ENV TORCH_CUDA_ARCH_LIST=9.0
 
-# Set env for horovod (framework)
+# Set env for horovod
 ENV HOROVOD_WITH_PYTORCH=1
+ENV HOROVOD_WITH_MPI=1
+ENV HOROVOD_GPU_OPERATIONS=NCCL
 
 # Set env for huggingface offline mode
 ENV TRANSFORMERS_OFFLINE=1
@@ -41,6 +43,13 @@ RUN apt-get install -y curl python3.10-distutils && \
     python3 get-pip.py && \
     pip install --no-cache-dir -r requirements.txt
 
+# Install open mpi
+RUN wget https://download.open-mpi.org/release/open-mpi/v4.1/openmpi-4.1.5.tar.gz && \
+    gunzip -c openmpi-4.1.5.tar.gz | tar xf - && \
+    cd openmpi-4.1.5 && \
+    ./configure --prefix=/usr/local && \
+    make all install
+
 # Install horovod
 RUN apt-get install -y cmake python3.10-dev && \
-    HOROVOD_GPU_OPERATIONS=NCCL pip install horovod[pytorch]==0.28.1
+    pip install horovod[pytorch]==0.28.1

@@ -27,7 +27,7 @@ def write_worker_config(network_addr: str, host_addr: int, port: int):
 
 def write_last_line():
     with open("run.sh", "a") as f:
-        f.write(f" python3 train_multi.py -e 1 -b 4 -g 1 -hf\n")
+        f.write(f" python3 train_multi.py -e 1 -b 4 -g 1 -hf -t\n")
 
 
 if __name__ == "__main__":
